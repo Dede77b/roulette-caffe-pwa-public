@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Roulette del Caffè ☕</title>
+  <!-- PWA basics -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#0f172a">
+  <!-- iOS specific -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Roulette Caffè">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <style>
+    :root{
+      --bg:#0f172a;         /* sfondo scuro */
+      --panel:#111827;      /* pannello */
+      --text:#e5e7eb;       /* testo chiaro */
+      --muted:#9ca3af;      /* testo secondario */
+      --primary:#22c55e;    /* pulsante primario */
+      --primary-700:#16a34a;
+      --accent:#06b6d4;     /* evidenze */
+      --danger:#ef4444;
+    }
+    *{box-sizing:border-box}
+    html, body { height: 100%; }
+    body{
+      margin:0;
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      background: radial-gradient(1000px 600px at 50% -10%, #1f2937 0%, var(--bg) 60%), var(--bg);
+      color:var(--text);
+      min-height:100svh;
+      display:grid;
+      place-items:center;
+      padding:24px;
+    }
+    .app{
+      width:min(1100px, 100%);
+      display:grid;
+      gap:20px;
+      grid-template-columns: 360px 1fr;
+    }
+    @media (max-width: 900px){
+      .app{ grid-template-columns: 1fr; }
+    }
+    .card{
+      background: linear-gradient(180deg, #0b1220 0%, var(--panel) 100%);
+      border:1px solid #1f2937;
+      border-radius:16px;
+      padding:18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+    h1{
+      margin:0 0 4px;
+      font-size: clamp(20px, 2.5vw, 28px);
+      letter-spacing:.2px;
+    }
+    .sub{ color:var(--muted); font-size:14px; margin-bottom:14px;}
+    .inputs{
+      display:grid; grid-template-columns:1fr 1fr; gap:10px;
+    }
+    @media (max-width: 520px){ .inputs{ grid-template-columns:1fr; } }
+    .field{ display:flex; gap:6px; align-items:center;}
+    .field label{
+      min-width:26px; height:26px; display:grid; place-items:center;
+      border-radius:6px; background:#0b1220; border:1px solid #1f2937; color:#93c5fd;
+      font-weight:600; font-size:12px;
+    }
+    .field input{
+      flex:1; padding:10px 12px; border-radius:8px; border:1px solid #243244;
+      background:#0b1220; color:var(--text); outline:none;
+    }
+    .actions{ display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;}
+    .btn{
+      appearance:none; border:none; border-radius:999px; padding:10px 16px;
+      font-weight:700; cursor:pointer; transition:.15s transform, .15s filter;
+      display:inline-flex; align-items:center; gap:8px;
+    }
+    .btn:disabled{ opacity:.6; cursor:not-allowed; }
+    .btn:hover{ filter:brightness(1.05); transform: translateY(-1px); }
+    .btn.primary{ background:linear-gradient(180deg, var(--primary), var(--primary-700)); color:#062e0e;}
+    .btn.secondary{ background:#0b1220; border:1px solid #1f2937; color:#d1d5db;}
+    .btn.danger{ background: linear-gradient(180deg, #f87171, var(--danger)); color:#3a0a0a;}
+
+    .wheel-wrap{
+      position:relative; display:grid; place-items:center; padding:10px; min-height:520px;
+    }
+    #wheel{
+      width:min(520px, 90vw); height:min(520px, 90vw);
+      background:#0b1220; border-radius:50%;
+      border:2px solid #1f2937;
+      box-shadow: inset 0 0 60px rgba(0,0,0,.35), 0 30px 80px rgba(0,0,0,.45);
+      transform: rotate(0deg);
+      transition: transform 0s;
+      will-change: transform;
+    }
+    .pointer{
+      position:absolute; top:10px; left:50%; transform: translateX(-50%);
+      width:0; height:0; border-left:16px solid transparent; border-right:16px solid transparent;
+      border-bottom:24px solid var(--accent); filter: drop-shadow(0 4px 8px rgba(0,0,0,.45));
+    }
+    .hub{
+      position:absolute; width:82px; height:82px; border-radius:50%;
+      background: radial-gradient(circle at 35% 35%, #ffffff, #cbd5e1 40%, #64748b 70%, #334155 100%);
+      border:2px solid #1f2937;
+      display:grid; place-items:center; font-weight:800; color:#0b1220; letter-spacing:.5px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    }
+    .result{
+      margin-top:12px; font-size: clamp(16px, 2vw, 20px);
+      background:#0b1220; border:1px solid #1f2937; padding:10px 12px; border-radius:10px;
+    }
+    .winner{ font-weight:800; color:#86efac; }
+    .toast{
+      position:fixed; inset:auto 16px 16px auto; background:#052e1a; color:#bbf7d0;
+      border:1px solid #14532d; border-radius:10px; padding:10px 14px; font-size:14px;
+      box-shadow: 0 8px 22px rgba(0,0,0,.35); opacity:0; transform: translateY(10px);
+      animation: pop 2.2s ease forwards;
+    }
+    @keyframes pop{
+      10%{ opacity:1; transform: translateY(0); }
+      85%{ opacity:1; }
+      100%{ opacity:0; transform: translateY(6px); }
+    }
+    /* Confetti */
+    .confetti{ position:fixed; inset:0; pointer-events:none; overflow:hidden; }
+    .piece{
+      position:absolute; width:10px; height:16px; opacity:.95; will-change: transform;
+      animation: fall linear forwards;
+    }
+    @keyframes fall{ to{ transform: translateY(110vh) rotate(540deg); } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Pannello sinistro: input nomi e comandi -->
+    <div class="card">
+      <h1>Roulette del Caffè ☕</h1>
+      <div class="sub">Inserisci 6 nomi e premi <b>SPIN</b> per sorteggiare chi paga il giro.</div>
+      <div class="inputs" id="inputs"></div>
+      <div class="actions">
+        <button class="btn primary" id="spinBtn">🎯 SPIN</button>
+        <button class="btn secondary" id="shuffleBtn" title="Mescola nomi nei settori">🔀 Mescola</button>
+        <button class="btn danger" id="clearBtn" title="Svuota i campi">🗑️ Svuota</button>
+      </div>
+      <div class="result" id="result">In attesa di estrazione…</div>
+      <div class="sub" style="margin-top:8px;">Suggerimento: premi <kbd>Invio</kbd> per avviare lo spin.</div>
+    </div>
+
+    <!-- Pannello destro: ruota -->
+    <div class="card wheel-wrap">
+      <div class="pointer"></div>
+      <canvas id="wheel" width="800" height="800" aria-label="Ruota dei nomi"></canvas>
+      <div class="hub">☕</div>
+    </div>
+  </div>
+
+  <div id="confetti" class="confetti" aria-hidden="true"></div>
+
+  <script>
+    // ======== Utilità =========
+    const byId = (id)=>document.getElementById(id);
+    const inputsWrap = byId('inputs');
+    const wheelCanvas = byId('wheel');
+    const ctx = wheelCanvas.getContext('2d');
+    const spinBtn = byId('spinBtn');
+    const shuffleBtn = byId('shuffleBtn');
+    const clearBtn = byId('clearBtn');
+    const resultBox = byId('result');
+    const confetti = byId('confetti');
+
+    const N = 6;                         // Numero fisso di settori/partecipanti
+    let names = Array(N).fill('');       // Nomi correnti
+    let order = [...Array(N).keys()];    // Ordine dei settori (per mescolamento)
+    let currentRotation = 0;             // Rotazione accumulata in gradi
+    let spinning = false;
+    let lastWinnerIndex = null;
+
+    // Random sicuro con window.crypto
+    function cryptoInt(min, max){ // inclusivo
+      const range = max - min + 1;
+      const buf = new Uint32Array(1);
+      let x;
+      // Evita bias con rejection sampling:
+      const limit = Math.floor(0xFFFFFFFF / range) * range;
+      do { window.crypto.getRandomValues(buf); x = buf[0]; } while (x >= limit);
+      return min + (x % range);
+    }
+    function cryptoChoice(arr){ return arr[cryptoInt(0, arr.length-1)]; }
+
+    // ======== UI: input nomi ========
+    function loadSaved(){
+      try{
+        const saved = JSON.parse(localStorage.getItem('roulette_caffe_names'));
+        if (Array.isArray(saved) && saved.length === N) names = saved;
+      }catch{}
+    }
+    function save(){
+      localStorage.setItem('roulette_caffe_names', JSON.stringify(names));
+    }
+    function renderInputs(){
+      inputsWrap.innerHTML = '';
+      for (let i=0;i<N;i++){
+        const row = document.createElement('div');
+        row.className = 'field';
+        const label = document.createElement('label');
+        label.textContent = String(i+1);
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = `Nome ${i+1}`;
+        input.value = names[i] || '';
+        input.autocapitalize = 'words';
+        input.enterKeyHint = 'go';
+        input.addEventListener('input', (e)=>{
+          names[i] = e.target.value.trim();
+          save();
+          drawWheel();
+        });
+        row.appendChild(label); row.appendChild(input);
+        inputsWrap.appendChild(row);
+      }
+    }
+
+    // ======== Disegno ruota su Canvas ========
+    function drawWheel(){
+      const w = wheelCanvas.width, h = wheelCanvas.height;
+      const cx = w/2, cy = h/2;
+      const radius = Math.min(w,h)/2 - 12;
+      ctx.clearRect(0,0,w,h);
+
+      const segAngle = (2*Math.PI)/N;
+      const start = -Math.PI/2; // parte dall'alto (12:00)
+
+      // Palette soft a coppie alternate
+      const colors = [
+        '#22c55e','#15803d',
+        '#06b6d4','#0e7490',
+        '#f59e0b','#b45309'
+      ];
+
+      ctx.save();
+      ctx.translate(cx, cy);
+
+      for (let i=0;i<N;i++){
+        const idx = order[i];
+        const a0 = start + i*segAngle;
+        const a1 = a0 + segAngle;
+
+        // Settore
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.arc(0,0,radius,a0,a1,false);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        // Separatore
+        ctx.strokeStyle = 'rgba(0,0,0,.35)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Testo (nome)
+        const label = (names[idx] || `Persona ${idx+1}`).trim();
+        ctx.save();
+        // Angolo centrale del settore
+        const am = a0 + segAngle/2;
+        ctx.rotate(am);
+        ctx.translate(radius*0.66, 0);
+        ctx.rotate(Math.PI/2); // testo leggibile radialmente
+        ctx.fillStyle = '#0b1220';
+        ctx.font = `${Math.max(18, radius*0.07)}px ui-sans-serif, system-ui, -apple-system`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        // Troncamento per nomi lunghi
+        const maxWidth = radius*0.9;
+        let text = label;
+        while (ctx.measureText(text).width > maxWidth && text.length > 4){
+          text = text.slice(0, -2) + '…';
+        }
+        ctx.fillText(text, 0, 0);
+        ctx.restore();
+      }
+
+      // Bordo esterno
+      ctx.beginPath();
+      ctx.arc(0,0,radius+4,0,2*Math.PI);
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = '#1f2937';
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // ======== Confetti =========
+    function launchConfetti(){
+      confetti.innerHTML = '';
+      const colors = ['#22c55e','#86efac','#06b6d4','#67e8f9','#f59e0b','#fde68a','#e879f9','#c084fc'];
+      const pieces = 120;
+      for (let i=0;i<pieces;i++){
+        const d = document.createElement('div');
+        d.className = 'piece';
+        d.style.left = Math.random()*100 + 'vw';
+        d.style.top = (-10 - Math.random()*20) + 'vh';
+        d.style.background = colors[i % colors.length];
+        d.style.transform = `translateY(0) rotate(${Math.random()*360}deg)`;
+        d.style.animationDuration = (6 + Math.random()*3) + 's';
+        confetti.appendChild(d);
+        // cleanup
+        setTimeout(()=>d.remove(), 10000);
+      }
+    }
+    function toast(msg){
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(()=>t.remove(), 2300);
+    }
+
+    // ======== Logica SPIN =========
+    function validateNames(){
+      const filled = names.map(n=>n && n.trim()).filter(Boolean);
+      if (filled.length < N){
+        toast(`Inserisci tutti e ${N} i nomi.`);
+        return false;
+      }
+      return true;
+    }
+
+    function spin(){
+      if (spinning) return;
+      if (!validateNames()) return;
+
+      // Scegli un vincitore in modo sicuro
+      const winnerSector = cryptoInt(0, N-1); // indice del settore (0..N-1) nell'ordine corrente
+      const winnerGlobalIndex = order[winnerSector]; // indice nel vettore names
+      const winnerName = names[winnerGlobalIndex];
+
+      // Parametri animazione
+      const segDeg = 360 / N;
+      const centerFromTop = winnerSector * segDeg + segDeg/2; // gradi
+      const fullTurns = cryptoInt(5, 8);                      // giri completi per spettacolo
+      const jitter = (Math.random()*segDeg/3) - (segDeg/6);   // piccolo scarto casuale
+      // Calcola la rotazione addizionale necessaria per far atterrare il centro del settore sul puntatore (top)
+      const targetMod = (360 - (centerFromTop + jitter)) % 360;
+      const needMod = ( (targetMod - (currentRotation % 360)) + 360 ) % 360;
+      const extra = fullTurns*360 + needMod;
+
+      spinning = true;
+      spinBtn.disabled = true;
+      shuffleBtn.disabled = true;
+      clearBtn.disabled = true;
+
+      const duration = 4200 + Math.random()*900; // 4.2s - 5.1s
+      wheelCanvas.style.transition = `transform ${duration}ms cubic-bezier(.12,.62,.02,1)`;
+      currentRotation += extra;
+      wheelCanvas.style.transform = `rotate(${currentRotation}deg)`;
+
+      // Suono semplice (facoltativo, senza file esterni)
+      try{
+        const ctxAudio = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctxAudio.createOscillator();
+        const g = ctxAudio.createGain();
+        o.connect(g); g.connect(ctxAudio.destination);
+        o.type = 'triangle';
+        o.frequency.value = 740;
+        g.gain.setValueAtTime(0.0001, ctxAudio.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.05, ctxAudio.currentTime + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctxAudio.currentTime + 0.15);
+        o.start(); o.stop(ctxAudio.currentTime + 0.18);
+      }catch{}
+
+      const onEnd = ()=>{
+        wheelCanvas.removeEventListener('transitionend', onEnd);
+        spinning = false;
+        spinBtn.disabled = false;
+        shuffleBtn.disabled = false;
+        clearBtn.disabled = false;
+        wheelCanvas.style.transition = 'transform 0s';
+
+        // Mostra risultato
+        resultBox.innerHTML = `Vince il conto del caffè: <span class="winner">${winnerName}</span> 🎉`;
+        launchConfetti();
+        lastWinnerIndex = winnerGlobalIndex;
+      };
+      wheelCanvas.addEventListener('transitionend', onEnd, { once:true });
+    }
+
+    // ======== Eventi UI =========
+    spinBtn.addEventListener('click', spin);
+    shuffleBtn.addEventListener('click', ()=>{
+      // Mescola la disposizione dei settori (non i nomi)
+      for (let i=order.length-1; i>0; i--){
+        const j = cryptoInt(0, i);
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      toast('Settori mescolati.');
+      drawWheel();
+    });
+    clearBtn.addEventListener('click', ()=>{
+      names = Array(N).fill('');
+      save();
+      renderInputs();
+      drawWheel();
+      resultBox.textContent = 'In attesa di estrazione…';
+    });
+    document.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter') spin();
+    });
+
+    // ======== Init ========
+    (function init(){
+      loadSaved();
+      renderInputs();
+      drawWheel();
+
+      // Registra il Service Worker per PWA/offline (HTTPS richiesto)
+      if ('serviceWorker' in navigator){
+        window.addEventListener('load', ()=>{
+          navigator.serviceWorker.register('./sw.js').catch(console.error);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>
