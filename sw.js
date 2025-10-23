@@ -1,5 +1,5 @@
-// Service Worker per Roulette del Caffè
-const CACHE_NAME = 'roulette-caffe-v1';
+// Service Worker per Roulette del Caffè (v2)
+const CACHE_NAME = 'roulette-caffe-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -28,19 +28,16 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET') return; // Lascia passare POST/PUT ecc.
-
+  if (req.method !== 'GET') return;
   event.respondWith(
     caches.match(req).then((cached) => {
-      if (cached) return cached; // Cache first per asset statici
+      if (cached) return cached;
       return fetch(req).then((res) => {
-        // Metti in cache una copia delle risorse ottenute via GET
         const copy = res.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
         return res;
       }).catch(() => {
-        // Fallback offline opzionale: puoi restituire una pagina offline
-        // return caches.match('./offline.html');
+        // opzionale: fallback offline
       });
     })
   );
